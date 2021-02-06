@@ -681,6 +681,33 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         [ConditionalFact]
+        public void Removing_an_item_from_a_collection_marks_it_as_modified()
+        {
+            using var testDatabase = SqlServerTestStore.CreateInitialized(DatabaseName);
+            var options = Fixture.CreateOptions(testDatabase);
+
+            using var context = new GameDbContext(options);
+            context.Database.EnsureCreatedResiliently();
+
+            var player = new PlayerCharacter(
+                new Level { Game = new Game() });
+
+            var weapon = new Item { Id = 1, Game = player.Game };
+
+            player.Items.Add(weapon);
+
+            context.Characters.Add(player);
+
+            context.SaveChanges();
+
+            player.Items.Remove(weapon);
+
+            context.ChangeTracker.DetectChanges();
+
+            Assert.True(context.Entry(player).Collection(p => p.Items).IsModified);
+        }
+
+        [ConditionalFact]
         public void Can_set_reference_twice()
         {
             using var testDatabase = SqlServerTestStore.CreateInitialized(DatabaseName);
