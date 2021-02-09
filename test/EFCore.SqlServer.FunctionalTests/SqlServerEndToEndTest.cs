@@ -1772,5 +1772,323 @@ namespace Microsoft.EntityFrameworkCore
             private void NotifyChanged([CallerMemberName] string propertyName = "")
                 => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+
+        #region IsModified tests
+
+        [ConditionalFact]
+        public void Collection_IsModified_updated_when_adding_directly_to_collection()
+        {
+            using var testDatabase = SqlServerTestStore.CreateInitialized(DatabaseName);
+            var options = Fixture.CreateOptions(testDatabase);
+
+            using (var context = new ShopDbContext(options))
+            {
+                context.Database.EnsureCreatedResiliently();
+
+                var order = new Order
+                {
+                    Id = 1,
+                    ClientName = "Joe",
+                };
+
+                context.Orders.Add(order);
+                context.SaveChanges();
+
+                order.Lines.Add(new OrderLine { Id = 1 });
+
+                context.ChangeTracker.DetectChanges();
+
+                Assert.True(context.Entry(order).Collection(o => o.Lines).IsModified);
+            }
+        }
+
+
+        [ConditionalFact]
+        public void Collection_IsModified_updated_when_adding_collection_entry_to_context()
+        {
+            using var testDatabase = SqlServerTestStore.CreateInitialized(DatabaseName);
+            var options = Fixture.CreateOptions(testDatabase);
+
+            using (var context = new ShopDbContext(options))
+            {
+                context.Database.EnsureCreatedResiliently();
+
+                var order = new Order
+                {
+                    Id = 1,
+                    ClientName = "Joe",
+                };
+
+                context.Orders.Add(order);
+                context.SaveChanges();
+
+                context.OrderLines.Add(new OrderLine
+                {
+                    Id = 1,
+                    Order = order
+                });
+
+                context.ChangeTracker.DetectChanges();
+
+                Assert.True(context.Entry(order).Collection(o => o.Lines).IsModified);
+            }
+        }
+
+        [ConditionalFact]
+        public void Collection_IsModified_updated_when_removing_collection_entry_from_context()
+        {
+            using var testDatabase = SqlServerTestStore.CreateInitialized(DatabaseName);
+            var options = Fixture.CreateOptions(testDatabase);
+
+            using (var context = new ShopDbContext(options))
+            {
+                context.Database.EnsureCreatedResiliently();
+
+                var order = new Order
+                {
+                    Id = 1,
+                    ClientName = "Joe",
+                };
+                var line = new OrderLine
+                {
+                    Id = 1
+                };
+                order.Lines.Add(line);
+
+                context.Orders.Add(order);
+                context.SaveChanges();
+
+                context.OrderLines.Remove(line);
+
+                context.ChangeTracker.DetectChanges();
+
+                Assert.True(context.Entry(order).Collection(o => o.Lines).IsModified);
+            }
+        }
+
+        [ConditionalFact]
+        public void Collection_IsModified_updated_when_removing_collection_entry_from_collection()
+        {
+            using var testDatabase = SqlServerTestStore.CreateInitialized(DatabaseName);
+            var options = Fixture.CreateOptions(testDatabase);
+
+            using (var context = new ShopDbContext(options))
+            {
+                context.Database.EnsureCreatedResiliently();
+
+                var order = new Order
+                {
+                    Id = 1,
+                    ClientName = "Joe",
+                };
+                var line = new OrderLine
+                {
+                    Id = 1
+                };
+                order.Lines.Add(line);
+
+                context.Orders.Add(order);
+                context.SaveChanges();
+
+                order.Lines.Remove(line);
+
+                context.ChangeTracker.DetectChanges();
+                // this fails!
+                Assert.True(context.Entry(order).Collection(o => o.Lines).IsModified);
+            }
+        }
+
+
+        [ConditionalFact]
+        public void Reference_IsModified_updated_when_adding_directly_to_entity()
+        {
+            using var testDatabase = SqlServerTestStore.CreateInitialized(DatabaseName);
+            var options = Fixture.CreateOptions(testDatabase);
+
+            using (var context = new ShopDbContext(options))
+            {
+                context.Database.EnsureCreatedResiliently();
+
+                var order = new Order
+                {
+                    Id = 1,
+                    ClientName = "Joe",
+                };
+
+                context.Orders.Add(order);
+                context.SaveChanges();
+
+                order.ShippingAddress = new Address
+                {
+                    Id = 1
+                };
+
+                context.ChangeTracker.DetectChanges();
+
+                Assert.True(context.Entry(order).Reference(o => o.ShippingAddress).IsModified);
+            }
+        }
+
+
+        [ConditionalFact]
+        public void Reference_IsModified_updated_when_adding_entry_to_context()
+        {
+            using var testDatabase = SqlServerTestStore.CreateInitialized(DatabaseName);
+            var options = Fixture.CreateOptions(testDatabase);
+
+            using (var context = new ShopDbContext(options))
+            {
+                context.Database.EnsureCreatedResiliently();
+
+                var order = new Order
+                {
+                    Id = 1,
+                    ClientName = "Joe",
+                };
+
+                context.Orders.Add(order);
+                context.SaveChanges();
+
+                context.Addresses.Add(new Address
+                {
+                    Id = 1,
+                    Order = order
+                });
+
+                context.ChangeTracker.DetectChanges();
+
+                Assert.True(context.Entry(order).Reference(o => o.ShippingAddress).IsModified);
+            }
+        }
+
+        [ConditionalFact]
+        public void Reference_IsModified_updated_when_removing_reference_entry_from_context()
+        {
+            using var testDatabase = SqlServerTestStore.CreateInitialized(DatabaseName);
+            var options = Fixture.CreateOptions(testDatabase);
+
+            using (var context = new ShopDbContext(options))
+            {
+                context.Database.EnsureCreatedResiliently();
+                var address = new Address
+                {
+                    Id = 1
+                };
+                var order = new Order
+                {
+                    Id = 1,
+                    ClientName = "Joe",
+                    ShippingAddress = address
+                };
+
+                context.Orders.Add(order);
+                context.SaveChanges();
+
+                context.Addresses.Remove(address);
+
+                context.ChangeTracker.DetectChanges();
+
+                Assert.True(context.Entry(order).Reference(o => o.ShippingAddress).IsModified);
+            }
+        }
+
+        [ConditionalFact]
+        public void Reference_IsModified_updated_when_clearing_required_reference_entity()
+        {
+            using var testDatabase = SqlServerTestStore.CreateInitialized(DatabaseName);
+            var options = Fixture.CreateOptions(testDatabase);
+
+            using (var context = new ShopDbContext(options))
+            {
+                context.Database.EnsureCreatedResiliently();
+                var address = new Address
+                {
+                    Id = 1
+                };
+                var order = new Order
+                {
+                    Id = 1,
+                    ClientName = "Joe",
+                    ShippingAddress = address
+                };
+
+                context.Orders.Add(order);
+                context.SaveChanges();
+
+                order.ShippingAddress = null;
+
+                context.ChangeTracker.DetectChanges();
+                // this fails!
+                Assert.True(context.Entry(order).Reference(o => o.ShippingAddress).IsModified);
+            }
+        }
+
+        public class Address
+        {
+            public virtual int Id { get; set; }
+            public virtual Order Order { get; set; }
+            public string ZipCode { get; set; }
+            public string State { get; set; }
+        }
+
+        public class OrderLine
+        {
+            public virtual int Id { get; set; }
+            public virtual Order Order { get; set; }
+            public virtual string Sku { get; set; }
+            public virtual int Quantity { get; set; }
+        }
+
+        public class Order
+        {
+            public virtual int Id { get; set; }
+            public virtual string ClientName { get; set; }
+            public virtual DateTime ShippingDate { get; set; }
+            public virtual ICollection<OrderLine> Lines { get; set; } = new HashSet<OrderLine>();
+            public virtual Address ShippingAddress { get; set; }
+        }
+
+        public class ShopDbContext : DbContext
+        {
+            public ShopDbContext(DbContextOptions options)
+                : base(options)
+            {
+            }
+
+            public DbSet<Order> Orders { get; set; }
+            public DbSet<OrderLine> OrderLines { get; set; }
+            public DbSet<Address> Addresses { get; set; }
+
+            protected override void OnModelCreating(ModelBuilder modelBuilder)
+            {
+                modelBuilder.Entity<Order>(
+                    eb =>
+                    {
+                        eb.HasKey(o => o.Id);
+                        eb.Property(o => o.Id).ValueGeneratedNever();
+                    });
+                modelBuilder.Entity<OrderLine>(
+                    eb =>
+                    {
+                        eb.HasKey(l => l.Id);
+                        eb.Property(l => l.Id).ValueGeneratedNever();
+                        eb.HasOne(l => l.Order)
+                            .WithMany(o => o.Lines)
+                            .HasForeignKey("OrderId")
+                            .IsRequired();
+                    });
+                modelBuilder.Entity<Address>(
+                    eb =>
+                    {
+                        eb.HasKey(a => a.Id);
+                        eb.Property(a => a.Id).ValueGeneratedNever();
+                        eb.HasOne(a => a.Order)
+                            .WithOne(o => o.ShippingAddress)
+                            .HasForeignKey<Address>("OrderId")
+                            .IsRequired();
+                    });
+            }
+        }
+        #endregion
     }
 }
